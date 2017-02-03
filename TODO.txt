@@ -1,0 +1,29 @@
+Sockat : un Chat avec groupes de discussions.
+
+
+Client --> se connecte au serveur --> donne ID --> Serveur répond si ID ok (unique)
+
+Client --> Voir liste autres clients connectés
+Client --> accès au chat général (all connected clients)
+Client --> Créer groupe (avec ID client)
+Client --> historique
+
+Serveur --> Connaisse la liste des clients connectés (de manière dynamique !)
+Serveur --> Groupe
+
+Groupe --> dispose d'un ID
+Groupe --> ajout/retrait de membre ?
+
+
+Groupe à 2 personnes --> conv privée
+Groupe avec tout le monde --> channel principal
+Groupe autre --> Plusieurs personnes dans une même conversation 
+
+Côté serveur pour un groupe : 
+	ID
+	Liste des membres
+	Liste des membres connectés
+
+Côté client : 
+	Liste des groupes auxquels on appartient
+	Liste des membres actuellement connectés
