@@ -16,6 +16,7 @@ typedef struct sockaddr sockaddr;
 typedef struct sockaddr_in sockaddr_in;
 typedef struct hostent hostent;
 typedef struct servent servent;
+
 /*------------------------------------------------------*/
 void renvoi (int sock) {
     char buffer[256];
@@ -35,6 +36,20 @@ void renvoi (int sock) {
     printf("message envoye. \n");       
     return;
 }
+/*------------------------------------------------------*/
+
+void *thread_client(void *arg)
+{
+    /* Détection de message */
+    printf("Un message a été reçu.\n");
+    renvoi((int) arg);
+    close((int) arg);
+
+    /* Suppression Warning */
+    (void) arg;
+    pthread_exit(NULL);
+}
+
 /*------------------------------------------------------*/
 /*------------------------------------------------------*/
 main(int argc, char **argv) {
@@ -117,9 +132,11 @@ exit(1);
         perror("erreur : impossible d'accepter la connexion avec le client.");
         exit(1);
         }
-        /* traitement du message */
-        printf("reception d'un message.\n");
-        renvoi(nouv_socket_descriptor);
-        close(nouv_socket_descriptor);
+        pthread_t thread1;
+
+        if(pthread_create(&thread1, NULL, thread_client, (void*)nouv_socket_descriptor) == -1) {
+            perror("pthread_create");
+            exit(1);
+        }
     }    
 }
