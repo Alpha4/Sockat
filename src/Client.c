@@ -24,17 +24,17 @@
 /***********************************************/
 // Fonction permetant de configurer le nom de l'utilisateur
 /***********************************************/
-void configuration_nomUtilisateur(char *NomUtilisateur)
+void configuration_nom_utilisateur(char *nom_utilisateur)
 {
 	while(true)
 	{
 		printf("Enter un nom d'utilisateur: ");
 		fflush(stdout);
-		memset(NomUtilisateur, 0, 1000);
-		fgets(NomUtilisateur, 22, stdin);
-		sup_caractere_nouvelle_ligne(NomUtilisateur);
+		memset(nom_utilisateur, 0, 1000);
+		fgets(nom_utilisateur, 22, stdin);
+		sup_caractere_nouvelle_ligne(nom_utilisateur);
 
-		if(strlen(NomUtilisateur) > 20)
+		if(strlen(nom_utilisateur) > 20)
 		{
 			puts("Le nom de l'utilisateur doit avoir au maximum 20 caractères !");
 
@@ -51,7 +51,7 @@ void envoi_nouveau_utilisateur_au_serveur(info_connexion *connexion)
 {
 	message msg;
 	msg.type = UTILISATEUR;
-	strncpy(msg.NomUtilisateur, connexion->NomUtilisateur, 20);
+	strncpy(msg.nom_utilisateur, connexion->nom_utilisateur, 20);
 
 	if(send(connexion->socket, (void*)&msg, sizeof(msg), 0) < 0)
 	{
@@ -68,7 +68,7 @@ void connexion_au_serveur(info_connexion *connexion, char *addresse, char *port)
 
 	while(true)
 	{
-		configuration_nomUtilisateur(connexion->NomUtilisateur);
+		configuration_nom_utilisateur(connexion->nom_utilisateur);
 
 		//Création du socket
 		if ((connexion->socket = socket(AF_INET, SOCK_STREAM , IPPROTO_TCP)) < 0)
@@ -101,7 +101,7 @@ void connexion_au_serveur(info_connexion *connexion, char *addresse, char *port)
 		else if(recv_val == 0)
 		{
 			close(connexion->socket);
-			printf("Ce nom d'utilisateur \"%s\" est déjà pris, veuillez en choisir un nouveau.\n", connexion->NomUtilisateur);
+			printf("Ce nom d'utilisateur \"%s\" est déjà pris, veuillez en choisir un nouveau.\n", connexion->nom_utilisateur);
 			continue;
 		}
 
@@ -149,12 +149,22 @@ void choix_utilisateur(info_connexion *connexion)
 	else if(strcmp(input, "/aide") == 0)
 	{
 		puts("");
-		puts(VIOLET "-------------------------------------------------------------------------------");
-		puts(BLANC "/quitter or /q: Quitter Sockat.");
-		puts("/aide: Afficher les informations.");
-		puts("/tous ou /t: Voir tous les utilisateurs connectés sur Sockat.");
-		puts("/p <Nom_du_destinaire> <message> Envoyer un message privée à Nom_du_destinaire.");
-		puts(VIOLET "-------------------------------------------------------------------------------");
+		puts(BLANC "_______________________________________________________________________________");
+		puts("");
+		puts("Tapez directement votre message pour l'envoyer à tout le monde.");
+		puts( "-------------------------------------------------------------------------------");
+		puts("/tous ou /t : Voir tous les utilisateurs connectés sur Sockat.");
+		puts( "-------------------------------------------------------------------------------");
+		puts("/p <Nom_du_destinaire> <message> : Envoyer un message privé à Nom_du_destinaire.");
+		puts( "-------------------------------------------------------------------------------");
+		puts("/c <Nom_du_groupe> : Créer un groupe privé. ");
+		puts("/g <Nom_du_groupe> <message> : Envoyer un message à un groupe.");
+		puts("/a <Nom_du_groupe> <Nom_Utilisateur> : Ajouter un utilisateur dans un groupe.");
+		puts("-------------------------------------------------------------------------------");
+		puts("/aide : Afficher les informations.");
+		puts("/quitter or /q : Quitter Sockat.");
+		puts("");
+		puts("_______________________________________________________________________________");
 		puts("" RESET);
 	}
 	else if(strncmp(input, "/p", 2) == 0)
@@ -168,7 +178,7 @@ void choix_utilisateur(info_connexion *connexion)
 
 		if(Destinataire == NULL)
 		{
-			puts(ROUGE "Le format du message privé est : /m <Nom_du_destinaire> <message>" RESET);
+			puts(ROUGE "Le format du message privé est : /p <Nom_du_destinaire> <message>" RESET);
 			return;
 		}
 
@@ -192,7 +202,121 @@ void choix_utilisateur(info_connexion *connexion)
 			return;
 		}
 
-		strncpy(msg.NomUtilisateur, Destinataire, 20);
+		strncpy(msg.nom_utilisateur, Destinataire, 20);
+		strncpy(msg.donnees, chatMsg, 255);
+
+		if(send(connexion->socket, &msg, sizeof(message), 0) < 0)
+		{
+			perror("Erreur de l'envoi.");
+			exit(1);
+		}
+
+	}
+	else if(strncmp(input, "/a", 2) == 0)
+	{
+		message msg;
+		msg.type = AJOUT_MEMBRE;
+
+		char *nomDuGroupe, *nom_utilisateur;
+
+		nomDuGroupe = strtok(input+3, " ");
+
+		if(nomDuGroupe == NULL)
+		{
+			puts(ROUGE "Le format est : /a <Nom_du_groupe> <Nom Utilisateur>" RESET);
+			return;
+		}
+
+		if(strlen(nomDuGroupe) > 20)
+		{
+			puts(ROUGE "Le nom du groupe est compris entre 1 et 20 caractères." RESET);
+			return;
+		}
+
+		nom_utilisateur = strtok(NULL, "");
+
+		if(nom_utilisateur == NULL || strlen(nom_utilisateur) > 20 )
+		{
+			puts(ROUGE "Veuillez saisir un utilisateur valide." RESET);
+			return;
+		}
+
+		strncpy(msg.nom_utilisateur, nomDuGroupe, 20);
+		strncpy(msg.donnees, nom_utilisateur, 20);
+
+		if(send(connexion->socket, &msg, sizeof(message), 0) < 0)
+		{
+			perror("Erreur de l'envoi.");
+			exit(1);
+		}
+
+	}
+	else if(strncmp(input, "/c", 2) == 0){
+		message msg;
+		msg.type = CREER_GOUPE;
+
+		char *nomDuGroupe;
+		nomDuGroupe = strtok(input+3, " ");
+
+		if(nomDuGroupe == NULL)
+		{
+			puts(ROUGE "Le format du est : /c <Nom_du_groupe>." RESET);
+			return;
+		}
+
+		if(strlen(nomDuGroupe) > 20)
+		{
+			puts(ROUGE "Le nom du groupe est compris entre 1 et 20 caractères." RESET);
+			return;
+		}
+
+		puts(BLEU "Demande de création d'un groupe ..." RESET);
+		
+		strncpy(msg.nom_utilisateur, nomDuGroupe, 20);
+
+		if(send(connexion->socket, &msg, sizeof(message), 0) < 0)
+		{
+			perror("Erreur de l'envoi.");
+			exit(1);
+		}
+
+	}
+	else if(strncmp(input, "/g", 2) == 0)
+	{
+		message msg;
+		msg.type = MESSAGE_GROUPE;
+
+		char *nom_groupe, *chatMsg;
+
+		nom_groupe = strtok(input+3, " ");
+
+		if(nom_groupe == NULL)
+		{
+			puts(ROUGE "Le format du message de groupe est : /g <Nom_du_groupe> <message>" RESET);
+			return;
+		}
+
+		if(strlen(nom_groupe) == 0)
+		{
+			puts(ROUGE "Veuillez saisir un nom de groupe." RESET);
+			return;
+		}
+
+		if(strlen(nom_groupe) > 20)
+		{
+			puts(ROUGE "Le nom d'un groupe est compris entre 1 et 20 caractères." RESET);
+			return;
+		}
+
+		chatMsg = strtok(NULL, "");
+
+		if(chatMsg == NULL)
+		{
+			puts(ROUGE "Veuillez saisir un message valide." RESET);
+			return;
+		}
+
+		strncpy(msg.nom_utilisateur, nom_groupe, 20);
 		strncpy(msg.donnees, chatMsg, 255);
 
 		if(send(connexion->socket, &msg, sizeof(message), 0) < 0)
@@ -207,7 +331,7 @@ void choix_utilisateur(info_connexion *connexion)
 
 		message msg;
 		msg.type = MESSAGE_PUBLIC;
-		strncpy(msg.NomUtilisateur, connexion->NomUtilisateur, 20);
+		strncpy(msg.nom_utilisateur, connexion->nom_utilisateur, 20);
 
 
 		if(strlen(input) == 0) {
@@ -254,11 +378,11 @@ void message_serveur_recu(info_connexion *connexion)
 	switch(msg.type)
 	{
 		case CONNEXION:
-		printf(VIOLET "%s - " JAUNE "%s s'est connecté sur Sockat." RESET "\n", date, msg.NomUtilisateur);
+		printf(VIOLET "%s - " JAUNE "%s s'est connecté sur Sockat." RESET "\n", date, msg.nom_utilisateur);
 		break;
 
 		case DECONNEXION:
-		printf(VIOLET "%s - " JAUNE "%s s'est déconnecté de Sockat." RESET "\n", date, msg.NomUtilisateur);
+		printf(VIOLET "%s - " JAUNE "%s s'est déconnecté de Sockat." RESET "\n", date, msg.nom_utilisateur);
 		break;
 
 		case UTILISATEURS:
@@ -266,11 +390,35 @@ void message_serveur_recu(info_connexion *connexion)
 		break;
 
 		case MESSAGE_PUBLIC:
-		printf(VIOLET "%s - " BLANC "%s : %s" RESET "\n", date, msg.NomUtilisateur, msg.donnees);
+		printf(VIOLET "%s - " BLANC "%s : %s" RESET "\n", date, msg.nom_utilisateur, msg.donnees);
 		break;
 
 		case MESSAGE_PRIVEE:
-		printf(VIOLET "%s -" BLANC " de la part de %s :" CYAN " %s" RESET "\n", date, msg.NomUtilisateur, msg.donnees);
+		printf(VIOLET "%s -" BLANC " de la part de %s :" CYAN " %s" RESET "\n", date, msg.nom_utilisateur, msg.donnees);
+		break;
+
+		case MESSAGE_GROUPE:
+		printf(VIOLET "%s -" BLANC " de la part du groupe %s :" CYAN " %s" RESET "\n", date, msg.nom_utilisateur, msg.donnees);
+		break;
+
+		case CREER_GOUPE_OK:
+		printf(VIOLET "%s - " VERT "Votre groupe : %s a bien été ajouté." RESET "\n", date, msg.donnees);
+		break;
+
+		case AJOUT_MEMBRE_OK:
+		printf(VIOLET "%s - " VERT "L'ajout du membre a bien été pris en compte." RESET "\n", date);
+		break;
+
+		case AJOUT_MEMBRE:
+		printf(VIOLET "%s - " VERT "Vous avez été ajouté dans le groupe : %s." RESET "\n", date, msg.donnees);
+		break;
+
+		case AJOUT_MEMBRE_ERREUR:
+		printf(VIOLET "%s - " ROUGE "L'ajout est impossible." RESET "\n", date);
+		break;		
+
+		case CREER_GOUPE_COMPLET:
+		printf(VIOLET "%s - " ROUGE "impossible de créer votre groupe :%s, la limite du nombre de groupe a été atteint." RESET "\n", date, msg.donnees);
 		break;
 
 		case COMPLET:

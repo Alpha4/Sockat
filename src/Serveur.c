@@ -21,7 +21,9 @@
 
 #include "Structures.h"
 
-#define MAX_CLIENTS 10
+#define MAX_CLIENTS 30
+#define MAX_GROUPES 5 // a modifier aussi dans la structures si modifié
+#define MAX_MEMBRE_PAR_GROUPE 5 // a modifier aussi dans la structures si modifié
 
 /***********************************************/
 // Fonction permetant d'initialiser le serveur
@@ -68,7 +70,7 @@ void envoi_message_public(info_connexion clients[], int emetteur, char *texte)
 {
     message msg;
     msg.type = MESSAGE_PUBLIC;
-    strncpy(msg.NomUtilisateur, clients[emetteur].NomUtilisateur, 20);
+    strncpy(msg.nom_utilisateur, clients[emetteur].nom_utilisateur, 20);
     strncpy(msg.donnees, texte, 256);
     int i = 0;
     for(i = 0; i < MAX_CLIENTS; i++)
@@ -92,14 +94,14 @@ void envoi_message_privee(info_connexion clients[], int emetteur,
 {
     message msg;
     msg.type = MESSAGE_PRIVEE;
-    strncpy(msg.NomUtilisateur, clients[emetteur].NomUtilisateur, 20);
+    strncpy(msg.nom_utilisateur, clients[emetteur].nom_utilisateur, 20);
     strncpy(msg.donnees, texte, 256);
 
     int i;
     for(i = 0; i < MAX_CLIENTS; i++)
     {
         if(i != emetteur && clients[i].socket != 0
-            && strcmp(clients[i].NomUtilisateur, destinataire) == 0)
+            && strcmp(clients[i].nom_utilisateur, destinataire) == 0)
         {
             if(send(clients[i].socket, &msg, sizeof(msg), 0) < 0)
             {
@@ -122,6 +124,7 @@ void envoi_message_privee(info_connexion clients[], int emetteur,
 
 }
 
+
 /***********************************************/
 // Fonction permetant de savoir si un Utilisateur peut se connecter et envoi sa réponse à celui-ci
 /***********************************************/
@@ -129,7 +132,7 @@ void envoi_message_connexion(info_connexion *clients, int emetteur)
 {
     message msg;
     msg.type = CONNEXION;
-    strncpy(msg.NomUtilisateur, clients[emetteur].NomUtilisateur, 21);
+    strncpy(msg.nom_utilisateur, clients[emetteur].nom_utilisateur, 21);
     int i = 0;
     for(i = 0; i < MAX_CLIENTS; i++)
     {
@@ -159,11 +162,11 @@ void envoi_message_connexion(info_connexion *clients, int emetteur)
 /***********************************************/
 // Fonction permetant d'effectuer une deconnexion 
 /***********************************************/
-void envoi_message_deconnexion(info_connexion *clients, char *NomUtilisateur)
+void envoi_message_deconnexion(info_connexion *clients, char *nom_utilisateur)
 {
     message msg;
     msg.type = DECONNEXION;
-    strncpy(msg.NomUtilisateur, NomUtilisateur, 21);
+    strncpy(msg.nom_utilisateur, nom_utilisateur, 21);
     int i = 0;
     for(i = 0; i < MAX_CLIENTS; i++)
     {
@@ -198,7 +201,7 @@ void envoi_liste_utilisateurs(info_connexion *clients, int receiver) {
     {
         if(clients[i].socket != 0)
         {
-            list = stpcpy(list, clients[i].NomUtilisateur);
+            list = stpcpy(list, clients[i].nom_utilisateur);
             list = stpcpy(list, "\n");
         }
     }
@@ -232,6 +235,150 @@ void envoi_message_complet(int socket)
     close(socket);
 }
 
+/***********************************************/
+// Fonction permetant de créer un groupe
+/***********************************************/
+void creer_groupe(info_connexion clients[], info_groupe groupes[], int emetteur, char *nom_groupe){
+    int groupeLibre=0;
+    int i=0;
+    bool libre = false;
+    while(!libre && i<MAX_GROUPES){
+        if(groupes[i].nombre_membres == 0){
+            libre = true;
+            groupeLibre = i;
+        }
+        ++i;
+    }
+
+    message msg;
+    strncpy(msg.donnees, nom_groupe, 20);
+
+    if(!libre){
+        msg.type = CREER_GOUPE_COMPLET;
+        printf(ROUGE "La limite du nombre de groupe a été atteint.\n" RESET);
+    }else{
+        groupes[groupeLibre].Membres[0]=clients[emetteur];
+        groupes[groupeLibre].nombre_membres = 1;
+        strncpy(groupes[groupeLibre].nom_groupe, nom_groupe, 20);
+        msg.type = CREER_GOUPE_OK;
+        printf(VERT "%s a créé le groupe %s.\n" RESET, clients[emetteur].nom_utilisateur, msg.nom_utilisateur);
+
+    }
+
+    if(send(clients[emetteur].socket, &msg, sizeof(msg), 0) < 0)
+    {
+        perror("Erreur d'envoi d'un message de la liste d'utilisateurs.");
+        exit(1);
+    }
+}
+
+/***********************************************/
+// Fonction permetant de ajouter un membre dans un groupe
+/***********************************************/
+void ajout_membre_groupe(info_connexion clients[], info_groupe groupes[], int emetteur, char *nom_groupe, char *donnees){
+    int i = 0;
+    bool trouve = false;
+    int number_groupe = 0;
+    while(!trouve && i < MAX_GROUPES){
+        if(groupes[i].nombre_membres>0){
+            if(strcmp(groupes[i].nom_groupe, nom_groupe) == 0 ){
+                trouve = true;
+                number_groupe = i;
+            }
+        }
+        ++i;
+    }
+    message msg;
+    strncpy(msg.donnees, nom_groupe, 20);
+
+    if(!trouve){
+        printf(ROUGE "Un utilisateur a tenté d'ajouter un utilisateur dans un groupe inexistant.\n" RESET);
+        msg.type = AJOUT_MEMBRE_ERREUR;
+    }else{
+        if(groupes[number_groupe].Membres[0].socket!=clients[emetteur].socket){
+            printf(ROUGE "Un utilisateur a tenté d'ajouter un utilisateur dans un groupe sans être le créateur du groupe.\n" RESET);
+            msg.type = AJOUT_MEMBRE_ERREUR;
+        }else{
+            trouve = false;
+            i = 0;
+            int number_client = 0;
+            while(!trouve && i < MAX_CLIENTS){
+                if(strcmp(clients[i].nom_utilisateur,donnees)==0){
+                    trouve = true;
+                    number_client=i;
+                }
+                ++i;
+            }
+            if(!trouve){
+                printf(ROUGE "Un utilisateur a tenté d'ajouter un utilisateur inextant dans un groupe.\n" RESET);
+                msg.type = AJOUT_MEMBRE_ERREUR;
+            }else{
+                int nb_membres = groupes[number_groupe].nombre_membres; 
+                if(nb_membres>=MAX_MEMBRE_PAR_GROUPE){
+                    printf(ROUGE "Un utilisateur a tenté d'ajouter un utilisateur dans un groupe complet.\n" RESET);
+                    msg.type = AJOUT_MEMBRE_ERREUR;
+                }else{
+                    groupes[number_groupe].Membres[nb_membres] = clients[number_client];
+                    groupes[number_groupe].nombre_membres++;
+                    msg.type = AJOUT_MEMBRE_OK;
+                    printf(VERT "%s a ajouté %s dans le groupe %s.\n" RESET, clients[emetteur].nom_utilisateur, donnees, nom_groupe);
+                    message msgNotif;
+                    strncpy(msgNotif.donnees, nom_groupe, 20);
+                    msgNotif.type = AJOUT_MEMBRE;
+                    if(send(clients[number_client].socket, &msgNotif, sizeof(msgNotif), 0) < 0)
+                    {
+                        perror("Erreur d'envoi d'un message de la liste d'utilisateurs.");
+                        exit(1);
+                    }
+                }
+            }
+        }
+    }
+
+    if(send(clients[emetteur].socket, &msg, sizeof(msg), 0) < 0)
+    {
+        perror("Erreur d'envoi d'un message de la liste d'utilisateurs.");
+        exit(1);
+    }
+}
+
+/***********************************************/
+// Fonction permetant d'envoyer un message a un groupe
+/***********************************************/
+void envoi_message_groupe(info_connexion clients[], info_groupe groupes[], int emetteur, char *nom_groupe, char *donnees){
+    int i = 0;
+    bool trouve = false;
+    int number_groupe = 0;
+    while(!trouve && i < MAX_GROUPES){
+        if(groupes[i].nombre_membres>0){
+            if(strcmp(groupes[i].nom_groupe, nom_groupe) == 0 ){
+                trouve = true;
+                number_groupe = i;
+            }
+        }
+        ++i;
+    }
+
+    if(!trouve){
+        printf(ROUGE "Un utilisateur a tenté d'envoyer un message à un groupe inexistant.\n" RESET);
+        //envoyer groupe inexistant !!
+    }else{
+        for(i=0; i<groupes[number_groupe].nombre_membres; ++i){
+            if(groupes[number_groupe].Membres[i].socket!=clients[emetteur].socket){
+                message msg;
+                msg.type = MESSAGE_GROUPE;
+                strncpy(msg.nom_utilisateur, nom_groupe, 20);
+                strncpy(msg.donnees, donnees, 256);
+
+                if(send(groupes[number_groupe].Membres[i].socket, &msg, sizeof(msg), 0) < 0)
+                {
+                    perror("Erreur d'envoi d'un message de groupe.");
+                }
+            }
+        }
+    }
+}
+
 
 /***********************************************/
 // Fonction permetant de déconnecter tous les utilisateurs
@@ -249,55 +396,69 @@ void deconnexion(info_connexion connexion[])
 /***********************************************/
 // Fonction permetant d'analyser le message de l'utilisateur 
 /***********************************************/
-void analyse_message_utilisateur(info_connexion clients[], int emetteur)
+void analyse_message_utilisateur(info_connexion clients[],info_groupe groupes[], int emetteur)
 {
     int read_size;
     message msg;
 
     if((read_size = recv(clients[emetteur].socket, &msg, sizeof(message), 0)) == 0)
     {
-        printf(ROUGE "Un utilisateur s'est déconnecté: %s.\n" BLANC, clients[emetteur].NomUtilisateur);
+        printf(ROUGE "Un utilisateur s'est déconnecté: %s.\n" BLANC, clients[emetteur].nom_utilisateur);
         close(clients[emetteur].socket);
         clients[emetteur].socket = 0;
-        envoi_message_deconnexion(clients, clients[emetteur].NomUtilisateur);
+        envoi_message_deconnexion(clients, clients[emetteur].nom_utilisateur);
 
     } else {
 
         switch(msg.type)
         {
             case UTILISATEURS:
-            envoi_liste_utilisateurs(clients, emetteur);
+                envoi_liste_utilisateurs(clients, emetteur);
             break;
 
             case UTILISATEUR: ;
-            int i;
-            for(i = 0; i < MAX_CLIENTS; i++)
-            {
-                if(clients[i].socket != 0 && strcmp(clients[i].NomUtilisateur, msg.NomUtilisateur) == 0)
+                int i;
+                for(i = 0; i < MAX_CLIENTS; i++)
                 {
-                    close(clients[emetteur].socket);
-                    clients[emetteur].socket = 0;
-                    return;
+                    if(clients[i].socket != 0 && strcmp(clients[i].nom_utilisateur, msg.nom_utilisateur) == 0)
+                    {
+                        close(clients[emetteur].socket);
+                        clients[emetteur].socket = 0;
+                        return;
+                    }
                 }
-            }
 
-            strcpy(clients[emetteur].NomUtilisateur, msg.NomUtilisateur);
-            printf(VERT "Un utilisateur s'est connecté: %s\n" RESET, clients[emetteur].NomUtilisateur);
-            envoi_message_connexion(clients, emetteur);
+                strcpy(clients[emetteur].nom_utilisateur, msg.nom_utilisateur);
+                printf(VERT "Un utilisateur s'est connecté: %s\n" RESET, clients[emetteur].nom_utilisateur);
+                envoi_message_connexion(clients, emetteur);
             break;
 
             case MESSAGE_PUBLIC:
-            envoi_message_public(clients, emetteur, msg.donnees);
-            printf(BLEU "Un message public a été reçu puis distribué à tout les utilisateurs.\n" RESET);
+                envoi_message_public(clients, emetteur, msg.donnees);
+                printf(BLEU "Un message public a été reçu puis distribué à tout les utilisateurs.\n" RESET);
             break;
 
             case MESSAGE_PRIVEE:
-            envoi_message_privee(clients, emetteur, msg.NomUtilisateur, msg.donnees);
-            printf(CYAN "Un message privée a été reçu puis envoyé au destinataire.\n" RESET);
+                envoi_message_privee(clients, emetteur, msg.nom_utilisateur, msg.donnees);
+                printf(CYAN "Un message privée a été reçu puis envoyé au destinataire.\n" RESET);
+            break;
+
+            case CREER_GOUPE:
+                creer_groupe(clients, groupes, emetteur, msg.nom_utilisateur);
+            break;
+
+            case AJOUT_MEMBRE:
+                ajout_membre_groupe(clients, groupes, emetteur, msg.nom_utilisateur, msg.donnees);
+            break;
+
+            case MESSAGE_GROUPE:
+                envoi_message_groupe(clients, groupes, emetteur, msg.nom_utilisateur, msg.donnees);
+                printf(CYAN "Un message pour le groupe : %s a été reçu puis envoyé aux membres de ce groupe.\n" RESET, msg.nom_utilisateur);
+
             break;
 
             default:
-            fprintf(stderr, "Le message reçu est inconnu.\n");
+                fprintf(stderr, "Le message reçu est inconnu.\n");
             break;
         }
     }
@@ -384,11 +545,16 @@ int main(int argc, char *argv[])
 
     info_connexion informationServeur;
     info_connexion clients[MAX_CLIENTS];
+    info_groupe groupes[MAX_GROUPES];
 
     int i;
     for(i = 0; i < MAX_CLIENTS; i++)
     {
         clients[i].socket = 0;
+    }
+
+    for(i = 0; i < MAX_GROUPES; i++){
+        groupes[i].nombre_membres = 0;
     }
 
     if (argc != 2)
@@ -423,7 +589,7 @@ int main(int argc, char *argv[])
         {
             if(clients[i].socket > 0 && FD_ISSET(clients[i].socket, &file_descriptors))
             {
-                analyse_message_utilisateur(clients, i);
+                analyse_message_utilisateur(clients, groupes, i);
             }
         }
     }

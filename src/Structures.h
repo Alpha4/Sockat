@@ -13,6 +13,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
+#include <stdbool.h>
 
 #define BLANC  "\x1B[37m"
 #define ROUGE  "\x1B[31m"
@@ -36,6 +37,13 @@ typedef enum
 	CONNEXION,
 	VALIDE,
 	UTILISATEUR,
+	CREER_GOUPE,
+	CREER_GOUPE_OK,
+	CREER_GOUPE_COMPLET,
+	AJOUT_MEMBRE,
+	AJOUT_MEMBRE_OK,
+	AJOUT_MEMBRE_ERREUR,
+	MESSAGE_GROUPE,
 	UTILISATEURS,
 	MESSAGE_PUBLIC,
 	MESSAGE_PRIVEE,
@@ -51,7 +59,7 @@ typedef enum
 typedef struct
 {
 	message_type type;
-	char NomUtilisateur[21];
+	char nom_utilisateur[21];
 	char donnees[256];
 
 } message;
@@ -63,7 +71,15 @@ typedef struct info_connexion
 {
 	int socket;
 	struct sockaddr_in addresse;
-	char NomUtilisateur[20];
+	char nom_utilisateur[20];
 } info_connexion;
+
+typedef struct info_groupe
+{
+	char nom_groupe[20];
+	info_connexion Membres[5];
+	int nombre_membres;
+} info_groupe;
+
 
 #endif
