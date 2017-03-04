@@ -62,6 +62,79 @@ void initialisation_du_serveur(info_connexion *informationServeur, int port)
     printf("Le serveur SOCKAT est lancé...\n");
 }
 
+/***********************************************/
+// Fonction permetant de savoir si un groupe existe déjà
+/***********************************************/
+bool groupe_existant(char *nom_groupe, info_groupe groupes[]){
+    int i;
+    for(i=0; i<MAX_GROUPES; ++i){
+        if(strcmp(groupes[i].nom_groupe,nom_groupe) == 0){
+            return true;
+        }
+    }
+    return false;
+}
+
+/***********************************************/
+// Fonction permetant de savoir si un utilisateur appartient à un groupe
+/***********************************************/
+bool appartient_groupe(info_connexion client, info_groupe groupe){
+    int i;
+    for(i=0; i<groupe.nombre_membres; ++i){
+        if(strcmp(client.nom_utilisateur,groupe.membres[i].nom_utilisateur) == 0){
+            return true;
+        }
+    }
+    return false;
+}
+
+/***********************************************/
+// Fonction permetant de synchroniser client dans le groupe
+/***********************************************/
+void synchronise_groupe(info_connexion client, info_groupe groupe){
+    if(appartient_groupe(client,groupe)){
+        bool trouve = false;
+        bool createur = false;
+        int i;
+        for(i=0; i<groupe.nombre_membres-1; ++i){
+            if(strcmp(groupe.membres[i].nom_utilisateur, client.nom_utilisateur)==0){
+                trouve=true;
+                if(i==0){
+                    createur=true;
+                }
+            }
+            if(trouve){
+                if(i<groupe.nombre_membres){
+                    groupe.membres[i]=groupe.membres[i+1];
+                }
+            }
+        }
+        groupe.nombre_membres=groupe.nombre_membres-1;
+        if(createur){
+            message msg;
+            msg.type = CREATEUR_GROUPE;
+            strncpy(msg.nom_utilisateur, groupe.nom_groupe, 20);
+            if(send(groupe.membres[0].socket, &msg, sizeof(msg), 0) < 0)
+            {
+                perror("Erreur d'envoi d'un message créateur.");
+                exit(1);
+            }
+        }
+    }
+}
+
+
+
+/***********************************************/
+// Fonction permetant de synchroniser client dans tous les groupes
+/***********************************************/
+void synchronise_groupes(info_connexion client, info_groupe groupes[]){
+    int i = 0;
+    for(i=0; i<MAX_GROUPES; ++i){
+        synchronise_groupe(client, groupes[i]);
+    }
+}
+
 
 /***********************************************/
 // Fonction permetant d'envoyer le message : texte à tous les utilisateurs/Clients
@@ -249,15 +322,18 @@ void creer_groupe(info_connexion clients[], info_groupe groupes[], int emetteur,
         }
         ++i;
     }
+    if(groupe_existant(nom_groupe, groupes)){
+        libre=false;
+    }
 
     message msg;
     strncpy(msg.donnees, nom_groupe, 20);
 
     if(!libre){
-        msg.type = CREER_GOUPE_COMPLET;
-        printf(ROUGE "La limite du nombre de groupe a été atteint.\n" RESET);
+        msg.type = CREER_GOUPE_ERREUR;
+        printf(ROUGE "Erreur de création de groupe : la limite du nombre de groupe a été atteint ou groupe déjà existant.\n" RESET);
     }else{
-        groupes[groupeLibre].Membres[0]=clients[emetteur];
+        groupes[groupeLibre].membres[0]=clients[emetteur];
         groupes[groupeLibre].nombre_membres = 1;
         strncpy(groupes[groupeLibre].nom_groupe, nom_groupe, 20);
         msg.type = CREER_GOUPE_OK;
@@ -295,7 +371,7 @@ void ajout_membre_groupe(info_connexion clients[], info_groupe groupes[], int em
         printf(ROUGE "Un utilisateur a tenté d'ajouter un utilisateur dans un groupe inexistant.\n" RESET);
         msg.type = AJOUT_MEMBRE_ERREUR;
     }else{
-        if(groupes[number_groupe].Membres[0].socket!=clients[emetteur].socket){
+        if(strcmp(groupes[number_groupe].membres[0].nom_utilisateur,clients[emetteur].nom_utilisateur)){
             printf(ROUGE "Un utilisateur a tenté d'ajouter un utilisateur dans un groupe sans être le créateur du groupe.\n" RESET);
             msg.type = AJOUT_MEMBRE_ERREUR;
         }else{
@@ -310,7 +386,7 @@ void ajout_membre_groupe(info_connexion clients[], info_groupe groupes[], int em
                 ++i;
             }
             if(!trouve){
-                printf(ROUGE "Un utilisateur a tenté d'ajouter un utilisateur inextant dans un groupe.\n" RESET);
+                printf(ROUGE "Un utilisateur a tenté d'ajouter un utilisateur inexistant dans un groupe.\n" RESET);
                 msg.type = AJOUT_MEMBRE_ERREUR;
             }else{
                 int nb_membres = groupes[number_groupe].nombre_membres; 
@@ -318,17 +394,22 @@ void ajout_membre_groupe(info_connexion clients[], info_groupe groupes[], int em
                     printf(ROUGE "Un utilisateur a tenté d'ajouter un utilisateur dans un groupe complet.\n" RESET);
                     msg.type = AJOUT_MEMBRE_ERREUR;
                 }else{
-                    groupes[number_groupe].Membres[nb_membres] = clients[number_client];
-                    groupes[number_groupe].nombre_membres++;
-                    msg.type = AJOUT_MEMBRE_OK;
-                    printf(VERT "%s a ajouté %s dans le groupe %s.\n" RESET, clients[emetteur].nom_utilisateur, donnees, nom_groupe);
-                    message msgNotif;
-                    strncpy(msgNotif.donnees, nom_groupe, 20);
-                    msgNotif.type = AJOUT_MEMBRE;
-                    if(send(clients[number_client].socket, &msgNotif, sizeof(msgNotif), 0) < 0)
-                    {
-                        perror("Erreur d'envoi d'un message de la liste d'utilisateurs.");
-                        exit(1);
+                    if(appartient_groupe(clients[number_client],groupes[number_groupe])){
+                        printf(ROUGE "Un utilisateur a tenté d'ajouter un utilisateur dans un groupe déjà existant.\n" RESET);
+                        msg.type = AJOUT_MEMBRE_ERREUR;
+                    }else{
+                        groupes[number_groupe].membres[nb_membres] = clients[number_client];
+                        groupes[number_groupe].nombre_membres++;
+                        msg.type = AJOUT_MEMBRE_OK;
+                        printf(VERT "%s a ajouté %s dans le groupe %s.\n" RESET, clients[emetteur].nom_utilisateur, donnees, nom_groupe);
+                        message msgNotif;
+                        strncpy(msgNotif.donnees, nom_groupe, 20);
+                        msgNotif.type = AJOUT_MEMBRE;
+                        if(send(clients[number_client].socket, &msgNotif, sizeof(msgNotif), 0) < 0)
+                        {
+                            perror("Erreur d'envoi d'un message de la liste d'utilisateurs.");
+                            exit(1);
+                        }
                     }
                 }
             }
@@ -363,18 +444,24 @@ void envoi_message_groupe(info_connexion clients[], info_groupe groupes[], int e
         printf(ROUGE "Un utilisateur a tenté d'envoyer un message à un groupe inexistant.\n" RESET);
         //envoyer groupe inexistant !!
     }else{
-        for(i=0; i<groupes[number_groupe].nombre_membres; ++i){
-            if(groupes[number_groupe].Membres[i].socket!=clients[emetteur].socket){
-                message msg;
-                msg.type = MESSAGE_GROUPE;
-                strncpy(msg.nom_utilisateur, nom_groupe, 20);
-                strncpy(msg.donnees, donnees, 256);
+        if(appartient_groupe(clients[emetteur],groupes[number_groupe])){
+            for(i=0; i<groupes[number_groupe].nombre_membres; ++i){
+                printf(ROUGE "envoie à %s \n" RESET, groupes[number_groupe].membres[i].nom_utilisateur);
+                if(strcmp(groupes[number_groupe].membres[i].nom_utilisateur,clients[emetteur].nom_utilisateur)==0){
+                    message msg;
+                    msg.type = MESSAGE_GROUPE;
+                    strncpy(msg.nom_utilisateur, nom_groupe, 20);
+                    strncpy(msg.donnees, donnees, 256);
 
-                if(send(groupes[number_groupe].Membres[i].socket, &msg, sizeof(msg), 0) < 0)
-                {
-                    perror("Erreur d'envoi d'un message de groupe.");
+                    if(send(groupes[number_groupe].membres[i].socket, &msg, sizeof(msg), 0) < 0)
+                    {
+                        printf("%d ???", groupes[number_groupe].nombre_membres);
+                        perror("Erreur d'envoi d'un message de groupe.");
+                    }
                 }
             }
+        }else{
+            //envoyer impossible d'envoyer un message à ce groupe!!
         }
     }
 }
@@ -403,6 +490,7 @@ void analyse_message_utilisateur(info_connexion clients[],info_groupe groupes[],
 
     if((read_size = recv(clients[emetteur].socket, &msg, sizeof(message), 0)) == 0)
     {
+        synchronise_groupes(clients[emetteur],groupes);
         printf(ROUGE "Un utilisateur s'est déconnecté: %s.\n" BLANC, clients[emetteur].nom_utilisateur);
         close(clients[emetteur].socket);
         clients[emetteur].socket = 0;
@@ -435,7 +523,7 @@ void analyse_message_utilisateur(info_connexion clients[],info_groupe groupes[],
 
             case MESSAGE_PUBLIC:
                 envoi_message_public(clients, emetteur, msg.donnees);
-                printf(BLEU "Un message public a été reçu puis distribué à tout les utilisateurs.\n" RESET);
+                printf(BLEU "Un message public a été reçu puis distribué à tous les utilisateurs.\n" RESET);
             break;
 
             case MESSAGE_PRIVEE:

@@ -409,6 +409,10 @@ void message_serveur_recu(info_connexion *connexion)
 		printf(VIOLET "%s - " VERT "L'ajout du membre a bien été pris en compte." RESET "\n", date);
 		break;
 
+		case CREATEUR_GROUPE:
+		printf(VIOLET "%s - " VERT "L'administrateur du groupe : %s s'est déconnecté alors vous devenez l'administrateur." RESET "\n", date, msg.nom_utilisateur);
+		break;
+
 		case AJOUT_MEMBRE:
 		printf(VIOLET "%s - " VERT "Vous avez été ajouté dans le groupe : %s." RESET "\n", date, msg.donnees);
 		break;
@@ -417,8 +421,8 @@ void message_serveur_recu(info_connexion *connexion)
 		printf(VIOLET "%s - " ROUGE "L'ajout est impossible." RESET "\n", date);
 		break;		
 
-		case CREER_GOUPE_COMPLET:
-		printf(VIOLET "%s - " ROUGE "impossible de créer votre groupe :%s, la limite du nombre de groupe a été atteint." RESET "\n", date, msg.donnees);
+		case CREER_GOUPE_ERREUR:
+		printf(VIOLET "%s - " ROUGE "impossible de créer votre groupe : %s." RESET "\n", date, msg.donnees);
 		break;
 
 		case COMPLET:

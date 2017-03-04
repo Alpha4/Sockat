@@ -39,7 +39,8 @@ typedef enum
 	UTILISATEUR,
 	CREER_GOUPE,
 	CREER_GOUPE_OK,
-	CREER_GOUPE_COMPLET,
+	CREER_GOUPE_ERREUR,
+	CREATEUR_GROUPE,
 	AJOUT_MEMBRE,
 	AJOUT_MEMBRE_OK,
 	AJOUT_MEMBRE_ERREUR,
@@ -77,7 +78,7 @@ typedef struct info_connexion
 typedef struct info_groupe
 {
 	char nom_groupe[20];
-	info_connexion Membres[5];
+	info_connexion membres[5];
 	int nombre_membres;
 } info_groupe;
 
