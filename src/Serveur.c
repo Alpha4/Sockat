@@ -21,9 +21,6 @@
 
 #include "Structures.h"
 
-#define MAX_CLIENTS 30
-#define MAX_GROUPES 5 // a modifier aussi dans la structures si modifié
-#define MAX_MEMBRE_PAR_GROUPE 5 // a modifier aussi dans la structures si modifié
 
 /***********************************************/
 // Fonction permetant d'initialiser le serveur

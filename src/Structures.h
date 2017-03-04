@@ -24,6 +24,10 @@
 #define VERT  "\x1B[32m"
 #define RESET "\033[0m"
 
+#define MAX_CLIENTS 30
+#define MAX_GROUPES 5
+#define MAX_MEMBRE_PAR_GROUPE 5
+
 /***********************************************/
 // Fonction permetant de supprimer le caracrtère de nouvelle ligne dans le texte
 /***********************************************/
@@ -78,7 +82,7 @@ typedef struct info_connexion
 typedef struct info_groupe
 {
 	char nom_groupe[20];
-	info_connexion membres[5];
+	info_connexion membres[MAX_MEMBRE_PAR_GROUPE];
 	int nombre_membres;
 } info_groupe;
 
