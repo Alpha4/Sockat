@@ -337,7 +337,7 @@ void creer_groupe(info_connexion clients[], info_groupe groupes[], int emetteur,
         groupes[groupeLibre].nombre_membres = 1;
         strncpy(groupes[groupeLibre].nom_groupe, nom_groupe, 20);
         msg.type = CREER_GOUPE_OK;
-        printf(VERT "%s a créé le groupe %s.\n" RESET, clients[emetteur].nom_utilisateur, msg.nom_utilisateur);
+        printf(VERT "%s a créé le groupe %s.\n" RESET, clients[emetteur].nom_utilisateur, nom_groupe);
 
     }
 
@@ -447,7 +447,7 @@ void envoi_message_groupe(info_connexion clients[], info_groupe groupes[], int e
         if(appartient_groupe(clients[emetteur],groupes[number_groupe])){
             for(i=0; i<groupes[number_groupe].nombre_membres; ++i){
                 printf(ROUGE "envoie à %s \n" RESET, groupes[number_groupe].membres[i].nom_utilisateur);
-                if(strcmp(groupes[number_groupe].membres[i].nom_utilisateur,clients[emetteur].nom_utilisateur)==0){
+                if(strcmp(groupes[number_groupe].membres[i].nom_utilisateur,clients[emetteur].nom_utilisateur)!=0){
                     message msg;
                     msg.type = MESSAGE_GROUPE;
                     strncpy(msg.nom_utilisateur, nom_groupe, 20);
