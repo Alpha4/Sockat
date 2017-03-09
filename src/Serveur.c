@@ -88,30 +88,30 @@ bool appartient_groupe(info_connexion client, info_groupe groupe){
 /***********************************************/
 // Fonction permetant de synchroniser client dans le groupe
 /***********************************************/
-void synchronise_groupe(info_connexion client, info_groupe groupe){
-    if(appartient_groupe(client,groupe)){
+void synchronise_groupe(info_connexion client, info_groupe *groupe){
+    if(appartient_groupe(client,*groupe)){
         bool trouve = false;
         bool createur = false;
         int i;
-        for(i=0; i<groupe.nombre_membres-1; ++i){
-            if(strcmp(groupe.membres[i].nom_utilisateur, client.nom_utilisateur)==0){
+        for(i=0; i<groupe->nombre_membres-1; ++i){
+            if(strcmp(groupe->membres[i].nom_utilisateur, client.nom_utilisateur)==0){
                 trouve=true;
                 if(i==0){
                     createur=true;
                 }
             }
             if(trouve){
-                if(i<groupe.nombre_membres){
-                    groupe.membres[i]=groupe.membres[i+1];
+                if(i<groupe->nombre_membres){
+                    groupe->membres[i]=groupe->membres[i+1];
                 }
             }
         }
-        groupe.nombre_membres=groupe.nombre_membres-1;
+        groupe->nombre_membres=groupe->nombre_membres-1;
         if(createur){
             message msg;
             msg.type = CREATEUR_GROUPE;
-            strncpy(msg.nom_utilisateur, groupe.nom_groupe, 20);
-            if(send(groupe.membres[0].socket, &msg, sizeof(msg), 0) < 0)
+            strncpy(msg.nom_utilisateur, groupe->nom_groupe, 20);
+            if(send(groupe->membres[0].socket, &msg, sizeof(msg), 0) < 0)
             {
                 perror("Erreur d'envoi d'un message créateur.");
                 exit(1);
@@ -128,7 +128,7 @@ void synchronise_groupe(info_connexion client, info_groupe groupe){
 void synchronise_groupes(info_connexion client, info_groupe groupes[]){
     int i = 0;
     for(i=0; i<MAX_GROUPES; ++i){
-        synchronise_groupe(client, groupes[i]);
+        synchronise_groupe(client, &groupes[i]);
     }
 }
 
