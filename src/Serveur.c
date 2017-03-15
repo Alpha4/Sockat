@@ -490,6 +490,7 @@ void analyse_message_utilisateur(info_connexion clients[],info_groupe groupes[],
         printf(ROUGE "Un utilisateur s'est déconnecté: %s.\n" BLANC, clients[emetteur].nom_utilisateur);
         close(clients[emetteur].socket);
         clients[emetteur].socket = 0;
+        strcpy(clients[emetteur].nom_utilisateur, "");
         envoi_message_deconnexion(clients, clients[emetteur].nom_utilisateur);
         strncpy(clients[emetteur].nom_utilisateur,"",20);
 
