@@ -491,10 +491,9 @@ void analyse_message_utilisateur(info_connexion clients[],info_groupe groupes[],
         printf(ROUGE "Un utilisateur s'est déconnecté: %s.\n" BLANC, clients[emetteur].nom_utilisateur);
         close(clients[emetteur].socket);
         clients[emetteur].socket = 0;
+        strncpy(clients[emetteur].nom_utilisateur,"",20);
         envoi_message_deconnexion(clients, clients[emetteur].nom_utilisateur);
-
     } else {
-
         switch(msg.type)
         {
             case UTILISATEURS:
@@ -505,6 +504,7 @@ void analyse_message_utilisateur(info_connexion clients[],info_groupe groupes[],
                 int i;
                 for(i = 0; i < MAX_CLIENTS; i++)
                 {
+                    // printf("BOLLEAN %d \n",clients[i].socket != 0 && strcmp(clients[i].nom_utilisateur, msg.nom_utilisateur) == 0 );
                     if(clients[i].socket != 0 && strcmp(clients[i].nom_utilisateur, msg.nom_utilisateur) == 0)
                     {
                         close(clients[emetteur].socket);
@@ -672,6 +672,7 @@ int main(int argc, char *argv[])
 
         for(i = 0; i < MAX_CLIENTS; i++)
         {
+            printf("Socket client %d -> %d\n",i, clients[i].socket );
             if(clients[i].socket > 0 && FD_ISSET(clients[i].socket, &file_descriptors))
             {
                 analyse_message_utilisateur(clients, groupes, i);

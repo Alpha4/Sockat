@@ -5,21 +5,21 @@ LFLAGS = -Wall $(DEBUG)
 
 all: Client Serveur
 
-Client: Client.o Structures.o
-	$(CC) $(LFLAGS) Client.o Structures.o -o obj/Client -lpthread
+Client: obj/Client.o obj/Structures.o
+	$(CC) $(LFLAGS) obj/Client.o obj/Structures.o -o bin/Client -lpthread
 
-Serveur: Serveur.o Structures.o
-	$(CC) $(LFLAGS) Serveur.o Structures.o -o obj/Serveur -lpthread
+Serveur: obj/Serveur.o obj/Structures.o
+	$(CC) $(LFLAGS) obj/Serveur.o obj/Structures.o -o bin/Serveur -lpthread
 
 
-Client.o: src/Client.c src/Structures.h
-	$(CC) $(CFLAGS) src/Client.c -lpthread
+obj/Client.o: src/Client.c src/Structures.h
+	$(CC) $(CFLAGS) -o obj/Client.o src/Client.c -lpthread
 
-Serveur.o: src/Serveur.c src/Structures.h
-	$(CC) $(CFLAGS) src/Serveur.c -lpthread
+obj/Serveur.o: src/Serveur.c src/Structures.h
+	$(CC) $(CFLAGS) -o obj/Serveur.o src/Serveur.c -lpthread
 
-Structures.o: src/Structures.h src/Structures.c
-	$(CC) $(CFLAGS) src/Structures.c -lpthread
+obj/Structures.o: src/Structures.h src/Structures.c
+	$(CC) $(CFLAGS) -o obj/Structures.o src/Structures.c -lpthread
 
 clean:
-	rm -rf *.o *~ obj/Client obj/Serveur 
+	rm -rf obj/*.o *~ bin/Client bin/Serveur 
