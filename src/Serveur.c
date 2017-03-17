@@ -443,7 +443,6 @@ void envoi_message_groupe(info_connexion clients[], info_groupe groupes[], int e
     }else{
         if(appartient_groupe(clients[emetteur],groupes[number_groupe])){
             for(i=0; i<groupes[number_groupe].nombre_membres; ++i){
-                printf(ROUGE "envoie à %s \n" RESET, groupes[number_groupe].membres[i].nom_utilisateur);
                 if(strcmp(groupes[number_groupe].membres[i].nom_utilisateur,clients[emetteur].nom_utilisateur)!=0){
                     message msg;
                     msg.type = MESSAGE_GROUPE;
@@ -672,7 +671,6 @@ int main(int argc, char *argv[])
 
         for(i = 0; i < MAX_CLIENTS; i++)
         {
-            printf("Socket client %d -> %d\n",i, clients[i].socket );
             if(clients[i].socket > 0 && FD_ISSET(clients[i].socket, &file_descriptors))
             {
                 analyse_message_utilisateur(clients, groupes, i);
