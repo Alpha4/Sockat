@@ -446,7 +446,10 @@ void envoi_message_groupe(info_connexion clients[], info_groupe groupes[], int e
                if(strcmp(groupes[number_groupe].membres[i].nom_utilisateur,clients[emetteur].nom_utilisateur)!=0){
                     message msg;
                     msg.type = MESSAGE_GROUPE;
-                    strncpy(msg.nom_utilisateur, nom_groupe, 20);
+                    strncpy(msg.nom_utilisateur, nom_groupe, 44);
+                    char str[] ="-->";
+                    strncat(msg.nom_utilisateur, str ,strlen(str));
+                    strncat(msg.nom_utilisateur, clients[emetteur].nom_utilisateur, strlen(clients[emetteur].nom_utilisateur));
                     strncpy(msg.donnees, donnees, 256);
 
                     if(send(groupes[number_groupe].membres[i].socket, &msg, sizeof(msg), 0) < 0)
@@ -490,7 +493,6 @@ void analyse_message_utilisateur(info_connexion clients[],info_groupe groupes[],
         printf(ROUGE "Un utilisateur s'est déconnecté: %s.\n" BLANC, clients[emetteur].nom_utilisateur);
         close(clients[emetteur].socket);
         clients[emetteur].socket = 0;
-        strcpy(clients[emetteur].nom_utilisateur, "");
         envoi_message_deconnexion(clients, clients[emetteur].nom_utilisateur);
         strncpy(clients[emetteur].nom_utilisateur,"",20);
 

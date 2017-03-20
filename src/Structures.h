@@ -64,7 +64,7 @@ typedef enum
 typedef struct
 {
 	message_type type;
-	char nom_utilisateur[21];
+	char nom_utilisateur[44];
 	char donnees[256];
 
 } message;
