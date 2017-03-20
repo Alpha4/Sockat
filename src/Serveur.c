@@ -138,6 +138,7 @@ void synchronise_groupes(info_connexion client, info_groupe groupes[]){
 /***********************************************/
 void envoi_message_public(info_connexion clients[], int emetteur, char *texte)
 {
+    //sleep(2);//Permet de visualiser le bon fonctionnemement des threads 
     message msg;
     msg.type = MESSAGE_PUBLIC;
     strncpy(msg.nom_utilisateur, clients[emetteur].nom_utilisateur, 20);
@@ -482,20 +483,34 @@ void deconnexion(info_connexion connexion[])
 /***********************************************/
 // Fonction permetant d'analyser le message de l'utilisateur 
 /***********************************************/
-void analyse_message_utilisateur(info_connexion clients[],info_groupe groupes[], int emetteur)
+void *analyse_message_utilisateur(void *arg)
 {
+    data* donnees;
+    donnees = (data*) arg;
     int read_size;
     message msg;
+    
+    info_connexion* clients = donnees->clients;
+    info_groupe* groupes = donnees->groupes;
+    int emetteur = donnees->emetteur;
+    
 
     if((read_size = recv(clients[emetteur].socket, &msg, sizeof(message), 0)) == 0)
     {
-        synchronise_groupes(clients[emetteur],groupes);
-        printf(ROUGE "Un utilisateur s'est déconnecté: %s.\n" BLANC, clients[emetteur].nom_utilisateur);
-        close(clients[emetteur].socket);
-        clients[emetteur].socket = 0;
-        envoi_message_deconnexion(clients, clients[emetteur].nom_utilisateur);
-        strncpy(clients[emetteur].nom_utilisateur,"",20);
+        if(!(strcmp(clients[emetteur].nom_utilisateur,"")==0)){
+            close(clients[emetteur].socket);
+            synchronise_groupes(clients[emetteur],groupes);
+            clients[emetteur].socket = 0;
 
+            char nom_utilisateur[21];
+            strncpy(nom_utilisateur, clients[emetteur].nom_utilisateur, 21);
+
+            if(!(strcmp(nom_utilisateur,"")==0)){
+                strncpy(clients[emetteur].nom_utilisateur,"",20);
+                printf(ROUGE "Un utilisateur s'est déconnecté: %s.\n" BLANC, nom_utilisateur);
+                envoi_message_deconnexion(clients, nom_utilisateur);
+            }
+        }
     } else {
         switch(msg.type)
         {
@@ -512,7 +527,7 @@ void analyse_message_utilisateur(info_connexion clients[],info_groupe groupes[],
                     {
                         close(clients[emetteur].socket);
                         clients[emetteur].socket = 0;
-                        return;
+                        break;
                     }
                 }
 
@@ -546,10 +561,11 @@ void analyse_message_utilisateur(info_connexion clients[],info_groupe groupes[],
             break;
 
             default:
-                fprintf(stderr, "Le message reçu est inconnu.\n");
+                // fprintf(stderr, "Le message reçu est inconnu.\n"); // Mis en commentaire suite aux threads
             break;
         }
     }
+    pthread_exit(NULL);
 }
 
 //A définir !!!!
@@ -634,6 +650,7 @@ int main(int argc, char *argv[])
     info_connexion informationServeur;
     info_connexion clients[MAX_CLIENTS];
     info_groupe groupes[MAX_GROUPES];
+    data donnees;
 
     int i;
     for(i = 0; i < MAX_CLIENTS; i++)
@@ -644,6 +661,9 @@ int main(int argc, char *argv[])
     for(i = 0; i < MAX_GROUPES; i++){
         groupes[i].nombre_membres = 0;
     }
+
+    donnees.groupes = groupes;
+    donnees.clients = clients;
 
     if (argc != 2)
     {
@@ -657,6 +677,7 @@ int main(int argc, char *argv[])
     {
         int max_fd = construct_fd_set(&file_descriptors, &informationServeur, clients);
 
+        //Problème venant d'ici suite aux threads
         if(select(max_fd+1, &file_descriptors, NULL, NULL, NULL) < 0)
         {
             perror("Select Failed");
@@ -677,7 +698,14 @@ int main(int argc, char *argv[])
         {
             if(clients[i].socket > 0 && FD_ISSET(clients[i].socket, &file_descriptors))
             {
-                analyse_message_utilisateur(clients, groupes, i);
+                donnees.emetteur = i;
+
+                pthread_t thread1;
+
+                if(pthread_create(&thread1, NULL, analyse_message_utilisateur,  (void *)&donnees) == -1) {
+                    perror("pthread_create");
+                    return EXIT_FAILURE;
+                }
             }
         }
     }

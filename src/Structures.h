@@ -86,5 +86,11 @@ typedef struct info_groupe
 	int nombre_membres;
 } info_groupe;
 
+typedef struct data{
+	info_connexion* clients;
+	info_groupe* groupes;
+	int emetteur;
+
+} data;
 
 #endif
