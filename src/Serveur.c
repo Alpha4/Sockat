@@ -585,7 +585,7 @@ void *analyse_message_utilisateur(void *arg)
 
 
 /***********************************************/
-// Fonction permetant de gérer les files descriptor
+// Fonction gérant les files descriptors
 /***********************************************/
 int construct_fd_set(fd_set *set, info_connexion *informationServeur,
     info_connexion clients[])
@@ -700,25 +700,25 @@ int main(int argc, char *argv[])
         int max_fd = construct_fd_set(&file_descriptors, &informationServeur, clients);
         //Problème venant d'ici suite aux threads
         // sleep(0.5);
-        if(select(max_fd+1, &file_descriptors, NULL, NULL, NULL) < 0)
+        if(select(max_fd+1, &file_descriptors, NULL, NULL, NULL) < 0) // is any of the fd ready to be read ?
         {
             perror("Select Failed");
             deconnexion(clients);
         }
 
-        if(FD_ISSET(STDIN_FILENO, &file_descriptors))
+        if(FD_ISSET(STDIN_FILENO, &file_descriptors))// STDIN fd (utiliser pour quitter le serveur)
         {
             analyse_entree_utilisateur(clients);
         }
 
-        if(FD_ISSET(informationServeur.socket, &file_descriptors))
+        if(FD_ISSET(informationServeur.socket, &file_descriptors))// fd du socket du serveur pour les nouvelles connexions
         {
             analyse_nouvelle_connexion(&informationServeur, clients);
         }
 
         for(i = 0; i < MAX_CLIENTS; i++)
         {
-            if(clients[i].socket > 0 && FD_ISSET(clients[i].socket, &file_descriptors))
+            if(clients[i].socket > 0 && FD_ISSET(clients[i].socket, &file_descriptors))// tous les autres fd pour les ≠ sockets des ≠ clients
             {
                 donnees.emetteur = i;
                 if(donnees.clientstest[i]==0){
