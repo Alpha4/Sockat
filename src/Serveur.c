@@ -138,7 +138,6 @@ void synchronise_groupes(info_connexion client, info_groupe groupes[]){
 /***********************************************/
 void envoi_message_public(info_connexion clients[], int emetteur, char *texte)
 {
-    //sleep(2);//Permet de visualiser le bon fonctionnemement des threads 
     message msg;
     msg.type = MESSAGE_PUBLIC;
     strncpy(msg.nom_utilisateur, clients[emetteur].nom_utilisateur, 20);
@@ -163,6 +162,9 @@ void envoi_message_public(info_connexion clients[], int emetteur, char *texte)
 void envoi_message_privee(info_connexion clients[], int emetteur,
     char *destinataire, char *texte)
 {
+    printf(CYAN "Sleep de 2 secondes en cours pour un thread ...\n" RESET);
+    sleep(2);//Permet de visualiser le bon fonctionnemement des threads 
+
     message msg;
     msg.type = MESSAGE_PRIVEE;
     strncpy(msg.nom_utilisateur, clients[emetteur].nom_utilisateur, 20);
@@ -246,7 +248,7 @@ void envoi_message_deconnexion(info_connexion *clients, char *nom_utilisateur)
             if(send(clients[i].socket, &msg, sizeof(msg), 0) < 0)
             {
                 perror("Erreur d'envoi d'un message déconnexion.");
-                exit(1);
+                // exit(1);
             }
         }
     }
@@ -494,88 +496,90 @@ void *analyse_message_utilisateur(void *arg)
     info_groupe* groupes = donnees->groupes;
     int emetteur = donnees->emetteur;
     int* clientstest = donnees->clientstest;
-
-    if((read_size = recv(clients[emetteur].socket, &msg, sizeof(message), 0)) == 0)
-    {
-        if(!(strcmp(clients[emetteur].nom_utilisateur,"")==0)){
-            close(clients[emetteur].socket);
-            synchronise_groupes(clients[emetteur],groupes);
-            clients[emetteur].socket = 0;
-
-            char nom_utilisateur[20];
-            strncpy(nom_utilisateur, clients[emetteur].nom_utilisateur, 20);
-
-            if(!(strcmp(nom_utilisateur,"")==0)){
-                strncpy(clients[emetteur].nom_utilisateur,"",20);
-                printf(ROUGE "Un utilisateur s'est déconnecté: %s.\n" BLANC, nom_utilisateur);
-                envoi_message_deconnexion(clients, nom_utilisateur);
-            }
-        }
-    } else {
-        switch(msg.type)
+    if(donnees->clientstest[emetteur]==1){
+        if((read_size = recv(clients[emetteur].socket, &msg, sizeof(message), 0)) == 0)
         {
-            case UTILISATEURS:
-                envoi_liste_utilisateurs(clients, emetteur);
-            break;
+            if(!(strcmp(clients[emetteur].nom_utilisateur,"")==0)){
+                close(clients[emetteur].socket);
+                synchronise_groupes(clients[emetteur],groupes);
+                clients[emetteur].socket = 0;
 
-            case UTILISATEUR: ;
-                int i;
-                bool ok = true;
-                for(i = 0; i < MAX_CLIENTS; i++)
-                {
-                    if(clients[i].socket != 0 && strcmp(clients[i].nom_utilisateur, msg.nom_utilisateur) == 0)
+                char nom_utilisateur[20];
+                strncpy(nom_utilisateur, clients[emetteur].nom_utilisateur, 20);
+
+                if(!(strcmp(nom_utilisateur,"")==0)){
+                    printf(ROUGE "Un utilisateur s'est déconnecté: %s.\n" BLANC, nom_utilisateur);
+                    envoi_message_deconnexion(clients, nom_utilisateur);
+                    strncpy(clients[emetteur].nom_utilisateur,"",20);
+                }
+            }
+            clientstest[emetteur]=0;
+        } else {
+            switch(msg.type)
+            {
+                case UTILISATEURS:
+                    envoi_liste_utilisateurs(clients, emetteur);
+                break;
+
+                case UTILISATEUR: ;
+                    int i;
+                    bool ok = true;
+                    for(i = 0; i < MAX_CLIENTS; i++)
                     {
-                        message msg;
-                        msg.type =  NON_VALIDE;
-                        if(send(clients[emetteur].socket, &msg, sizeof(msg), 0) < 0)
+                        if(clients[i].socket != 0 && strcmp(clients[i].nom_utilisateur, msg.nom_utilisateur) == 0)
                         {
-                            perror("Erreur d'envoi d'un message connexion.");
-                            exit(1);
+                            message msg;
+                            msg.type =  NON_VALIDE;
+                            if(send(clients[emetteur].socket, &msg, sizeof(msg), 0) < 0)
+                            {
+                                perror("Erreur d'envoi d'un message connexion.");
+                                exit(1);
+                            }
+                            close(clients[emetteur].socket);
+                            clients[emetteur].socket = 0;
+                            ok = false;
+                            clientstest[emetteur]=0;
+                            pthread_exit(NULL);
                         }
-                        close(clients[emetteur].socket);
-                        clients[emetteur].socket = 0;
-                        ok = false;
-                        clientstest[emetteur]=0;
-                        pthread_exit(NULL);
                     }
-                }
-                if(ok){
-                    strcpy(clients[emetteur].nom_utilisateur, msg.nom_utilisateur);
-                    printf(VERT "Un utilisateur s'est connecté: %s\n" RESET, clients[emetteur].nom_utilisateur);
-                    envoi_message_connexion(clients, emetteur);
-                }
-            break;
+                    if(ok){
+                        strcpy(clients[emetteur].nom_utilisateur, msg.nom_utilisateur);
+                        printf(VERT "Un utilisateur s'est connecté: %s\n" RESET, clients[emetteur].nom_utilisateur);
+                        envoi_message_connexion(clients, emetteur);
+                    }
+                break;
 
-            case MESSAGE_PUBLIC:
-                envoi_message_public(clients, emetteur, msg.donnees);
-                printf(BLEU "Un message public a été reçu puis distribué à tous les utilisateurs.\n" RESET);
-            break;
+                case MESSAGE_PUBLIC:
+                    envoi_message_public(clients, emetteur, msg.donnees);
+                    printf(BLEU "Un message public a été reçu puis distribué à tous les utilisateurs.\n" RESET);
+                break;
 
-            case MESSAGE_PRIVEE:
-                envoi_message_privee(clients, emetteur, msg.nom_utilisateur, msg.donnees);
-                printf(CYAN "Un message privée a été reçu puis envoyé au destinataire.\n" RESET);
-            break;
+                case MESSAGE_PRIVEE:
+                    envoi_message_privee(clients, emetteur, msg.nom_utilisateur, msg.donnees);
+                    printf(CYAN "Un message privée a été reçu puis envoyé au destinataire.\n" RESET);
+                break;
 
-            case CREER_GOUPE:
-                creer_groupe(clients, groupes, emetteur, msg.nom_utilisateur);
-            break;
+                case CREER_GOUPE:
+                    creer_groupe(clients, groupes, emetteur, msg.nom_utilisateur);
+                break;
 
-            case AJOUT_MEMBRE:
-                ajout_membre_groupe(clients, groupes, emetteur, msg.nom_utilisateur, msg.donnees);
-            break;
+                case AJOUT_MEMBRE:
+                    ajout_membre_groupe(clients, groupes, emetteur, msg.nom_utilisateur, msg.donnees);
+                break;
 
-            case MESSAGE_GROUPE:
-                envoi_message_groupe(clients, groupes, emetteur, msg.nom_utilisateur, msg.donnees);
-                printf(CYAN "Un message pour le groupe : %s a été reçu puis envoyé aux membres de ce groupe.\n" RESET, msg.nom_utilisateur);
+                case MESSAGE_GROUPE:
+                    envoi_message_groupe(clients, groupes, emetteur, msg.nom_utilisateur, msg.donnees);
+                    printf(CYAN "Un message pour le groupe : %s a été reçu puis envoyé aux membres de ce groupe.\n" RESET, msg.nom_utilisateur);
 
-            break;
+                break;
 
-            default:
-                // fprintf(stderr, "Le message reçu est inconnu.\n"); // Mis en commentaire suite aux threads
-            break;
+                default:
+                    // fprintf(stderr, "Le message reçu est inconnu.\n"); // Mis en commentaire suite aux threads
+                break;
+            }
+            clientstest[emetteur]=0;
         }
     }
-    clientstest[emetteur]=0;
     pthread_exit(NULL);
 }
 
@@ -690,9 +694,10 @@ int main(int argc, char *argv[])
 
     while(true)
     {
+        sleep(1);
         int max_fd = construct_fd_set(&file_descriptors, &informationServeur, clients);
-
         //Problème venant d'ici suite aux threads
+        // sleep(0.5);
         if(select(max_fd+1, &file_descriptors, NULL, NULL, NULL) < 0)
         {
             perror("Select Failed");
@@ -714,7 +719,7 @@ int main(int argc, char *argv[])
             if(clients[i].socket > 0 && FD_ISSET(clients[i].socket, &file_descriptors))
             {
                 donnees.emetteur = i;
-                if(!(strcmp(clients[i].nom_utilisateur,"")==0)||donnees.clientstest[i]==0){
+                if(donnees.clientstest[i]==0){
                     donnees.clientstest[i]=1;
                     pthread_t thread1;
 
