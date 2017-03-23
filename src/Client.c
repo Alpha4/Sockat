@@ -347,7 +347,14 @@ void choix_utilisateur(info_connexion *connexion)
 		}
 	}
 
-
+    char * display = malloc (sizeof (*display) * (strlen(msg.donnees)+17+strlen(BLANC)));
+    strcpy(display,"\33[A\33[2K");
+    strcat(display,BLANC);
+    strcat(display,"Vous : ");
+    strcat(display,msg.donnees);
+    strcat(display,"\33[E");
+    write(1,display,strlen(msg.donnees)+25);
+    write(1,"\33[B\r",4);
 
 }
 
