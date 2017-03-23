@@ -33,7 +33,7 @@ void configuration_nom_utilisateur(char *nom_utilisateur)
 		memset(nom_utilisateur, 0, 1000);
 		fgets(nom_utilisateur, 22, stdin);
 		sup_caractere_nouvelle_ligne(nom_utilisateur);
-
+	
 		if(strlen(nom_utilisateur) > 20)
 		{
 			puts("Le nom de l'utilisateur doit avoir au maximum 20 caractères !");
@@ -98,7 +98,7 @@ void connexion_au_serveur(info_connexion *connexion, char *addresse, char *port)
 			exit(1);
 
 		}
-		else if(recv_val == 0)
+		else if(recv_val == 0 || msg.type == NON_VALIDE)
 		{
 			close(connexion->socket);
 			printf("Ce nom d'utilisateur \"%s\" est déjà pris, veuillez en choisir un nouveau.\n", connexion->nom_utilisateur);

@@ -40,6 +40,7 @@ typedef enum
 {
 	CONNEXION,
 	VALIDE,
+	NON_VALIDE,
 	UTILISATEUR,
 	CREER_GOUPE,
 	CREER_GOUPE_OK,
@@ -90,7 +91,7 @@ typedef struct data{
 	info_connexion* clients;
 	info_groupe* groupes;
 	int emetteur;
-
+	int* clientstest;
 } data;
 
 #endif

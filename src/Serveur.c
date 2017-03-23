@@ -493,7 +493,7 @@ void *analyse_message_utilisateur(void *arg)
     info_connexion* clients = donnees->clients;
     info_groupe* groupes = donnees->groupes;
     int emetteur = donnees->emetteur;
-    
+    int* clientstest = donnees->clientstest;
 
     if((read_size = recv(clients[emetteur].socket, &msg, sizeof(message), 0)) == 0)
     {
@@ -502,8 +502,8 @@ void *analyse_message_utilisateur(void *arg)
             synchronise_groupes(clients[emetteur],groupes);
             clients[emetteur].socket = 0;
 
-            char nom_utilisateur[21];
-            strncpy(nom_utilisateur, clients[emetteur].nom_utilisateur, 21);
+            char nom_utilisateur[20];
+            strncpy(nom_utilisateur, clients[emetteur].nom_utilisateur, 20);
 
             if(!(strcmp(nom_utilisateur,"")==0)){
                 strncpy(clients[emetteur].nom_utilisateur,"",20);
@@ -520,20 +520,30 @@ void *analyse_message_utilisateur(void *arg)
 
             case UTILISATEUR: ;
                 int i;
+                bool ok = true;
                 for(i = 0; i < MAX_CLIENTS; i++)
                 {
-                    // printf("BOLLEAN %d \n",clients[i].socket != 0 && strcmp(clients[i].nom_utilisateur, msg.nom_utilisateur) == 0 );
                     if(clients[i].socket != 0 && strcmp(clients[i].nom_utilisateur, msg.nom_utilisateur) == 0)
                     {
+                        message msg;
+                        msg.type =  NON_VALIDE;
+                        if(send(clients[emetteur].socket, &msg, sizeof(msg), 0) < 0)
+                        {
+                            perror("Erreur d'envoi d'un message connexion.");
+                            exit(1);
+                        }
                         close(clients[emetteur].socket);
                         clients[emetteur].socket = 0;
-                        break;
+                        ok = false;
+                        clientstest[emetteur]=0;
+                        pthread_exit(NULL);
                     }
                 }
-
-                strcpy(clients[emetteur].nom_utilisateur, msg.nom_utilisateur);
-                printf(VERT "Un utilisateur s'est connecté: %s\n" RESET, clients[emetteur].nom_utilisateur);
-                envoi_message_connexion(clients, emetteur);
+                if(ok){
+                    strcpy(clients[emetteur].nom_utilisateur, msg.nom_utilisateur);
+                    printf(VERT "Un utilisateur s'est connecté: %s\n" RESET, clients[emetteur].nom_utilisateur);
+                    envoi_message_connexion(clients, emetteur);
+                }
             break;
 
             case MESSAGE_PUBLIC:
@@ -565,6 +575,7 @@ void *analyse_message_utilisateur(void *arg)
             break;
         }
     }
+    clientstest[emetteur]=0;
     pthread_exit(NULL);
 }
 
@@ -651,11 +662,14 @@ int main(int argc, char *argv[])
     info_connexion clients[MAX_CLIENTS];
     info_groupe groupes[MAX_GROUPES];
     data donnees;
+    int clientstest[MAX_CLIENTS];
 
     int i;
     for(i = 0; i < MAX_CLIENTS; i++)
     {
         clients[i].socket = 0;
+        strncpy(clients[i].nom_utilisateur,"",20);
+        clientstest[i] = 0;
     }
 
     for(i = 0; i < MAX_GROUPES; i++){
@@ -664,6 +678,7 @@ int main(int argc, char *argv[])
 
     donnees.groupes = groupes;
     donnees.clients = clients;
+    donnees.clientstest = clientstest;
 
     if (argc != 2)
     {
@@ -699,12 +714,14 @@ int main(int argc, char *argv[])
             if(clients[i].socket > 0 && FD_ISSET(clients[i].socket, &file_descriptors))
             {
                 donnees.emetteur = i;
+                if(!(strcmp(clients[i].nom_utilisateur,"")==0)||donnees.clientstest[i]==0){
+                    donnees.clientstest[i]=1;
+                    pthread_t thread1;
 
-                pthread_t thread1;
-
-                if(pthread_create(&thread1, NULL, analyse_message_utilisateur,  (void *)&donnees) == -1) {
-                    perror("pthread_create");
-                    return EXIT_FAILURE;
+                    if(pthread_create(&thread1, NULL, analyse_message_utilisateur,  (void *)&donnees) == -1) {
+                            perror("pthread_create");
+                            return EXIT_FAILURE;
+                    }
                 }
             }
         }
