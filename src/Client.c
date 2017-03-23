@@ -345,13 +345,17 @@ void choix_utilisateur(info_connexion *connexion)
 			perror("Erreur de l'envoi.");
 			exit(1);
 		}
-	    char * display = malloc (sizeof (*display) * (strlen(msg.donnees)+17+strlen(BLANC)));
+		time_t t = time(NULL); 
+		char* date = asctime(localtime(&t));
+		sup_caractere_nouvelle_ligne(date);
+	    char * display = malloc (sizeof (*display) * (strlen(msg.donnees)+22+strlen(BLEU)+22));
 	    strcpy(display,"\33[A\33[2K");
-	    strcat(display,BLANC);
-	    strcat(display,"Vous : ");
+	    strcat(display,BLEU);
+	    strcat(display,date);
+	    strcat(display,"- Vous : ");
 	    strcat(display,msg.donnees);
 	    strcat(display,"\33[E");
-	    write(1,display,strlen(msg.donnees)+25);
+	    write(1,display,strlen(msg.donnees)+22+strlen(BLEU)+22);
 	    write(1,"\33[B\r",4);
 	}
 

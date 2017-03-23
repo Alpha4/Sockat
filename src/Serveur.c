@@ -583,8 +583,10 @@ void *analyse_message_utilisateur(void *arg)
     pthread_exit(NULL);
 }
 
-//A définir !!!!
 
+/***********************************************/
+// Fonction permetant de gérer les files descriptor
+/***********************************************/
 int construct_fd_set(fd_set *set, info_connexion *informationServeur,
     info_connexion clients[])
 {
