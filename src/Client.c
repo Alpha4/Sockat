@@ -348,15 +348,16 @@ void choix_utilisateur(info_connexion *connexion)
 		time_t t = time(NULL); 
 		char* date = asctime(localtime(&t));
 		sup_caractere_nouvelle_ligne(date);
-	    char * display = malloc (sizeof (*display) * (strlen(msg.donnees)+22+strlen(BLEU)+22));
+	    char * display = malloc (sizeof (*display) * (strlen(msg.donnees)+23+strlen(RESET)+strlen(BLEU)+22));
 	    strcpy(display,"\33[A\33[2K");
 	    strcat(display,BLEU);
 	    strcat(display,date);
-	    strcat(display,"- Vous : ");
+	    strcat(display," - Vous : ");
 	    strcat(display,msg.donnees);
+	    strcat(display,RESET);
 	    strcat(display,"\33[E");
-	    write(1,display,strlen(msg.donnees)+22+strlen(BLEU)+22);
-	    write(1,"\33[B\r",4);
+	    write(1,display,strlen(msg.donnees)+23+strlen(BLEU)+strlen(RESET)+22);
+	    //write(1,"\33[B\r",4);
 	}
 
 
